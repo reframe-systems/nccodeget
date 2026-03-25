@@ -11,12 +11,12 @@ Background: NC Code Tables are custom FeatureScript tables in Onshape that conta
 ## Build and run
 
 ```sh
-go build         # produces ./fstable binary
+go build         # produces ./nccodeget binary
 ```
 
 ```sh
-./fstable <onshape-part-studio-url> [output-dir] [--dump]
-# e.g.: ./fstable https://cad.onshape.com/documents/2ae050.../w/b24063.../e/619427... ./output
+./nccodeget <onshape-part-studio-url> [output-dir] [--dump]
+# e.g.: ./nccodeget https://cad.onshape.com/documents/2ae050.../w/b24063.../e/619427... ./output
 ```
 
 `--dump` writes a raw JSON file of the API response alongside the text files.
@@ -48,9 +48,9 @@ See `secrets.json.template` for the 1Password paths. The pre-commit hook in `hoo
 
 ## Architecture
 
-Everything lives in `fstable.go` (single `main` package). There is no go-client dependency — all API calls use `net/http` directly with basic auth.
+Everything lives in `nccodeget.go` (single `main` package). There is no go-client dependency — all API calls use `net/http` directly with basic auth.
 
-**Hardcoded configuration** is in a clearly labeled `const` block at the top of `fstable.go`:
+**Hardcoded configuration** is in a clearly labeled `const` block at the top of `nccodeget.go`:
 - `tableNamespace` — identifies the FeatureScript library that defines `ncCodeTable`. The `m{mid}` component is a microversion ID that may need updating if the library changes.
 - `tableType` — `"ncCodeTable"`
 - `tableParameters` — `"addPartNumbers=true;addMarkingsFirst=true"`
@@ -58,7 +58,7 @@ Everything lives in `fstable.go` (single `main` package). There is no go-client 
 **Key functions:**
 - `main` — parses args/flags, loads credentials, orchestrates the two API calls, writes output files
 - `getElementName` — calls `GET /documents/d/{did}/{wvm}/{wvmid}/elements` to resolve the element's human-readable name (used as the output folder and concatenated filename)
-- `getFSTable` — calls `GET /partstudios/d/{did}/{wvm}/{wvmid}/e/{eid}/fstable` with the hardcoded table config
+- `getFSTable` — calls `GET /partstudios/d/{did}/{wvm}/{wvmid}/e/{eid}/nccodeget` with the hardcoded table config
 - `apiGet` — shared HTTP helper used by both API calls
 - `extractTableText` — pulls `columnIdToValue["ncCode"]` from each row and joins with newlines
 - `sanitizeTitle` — replaces `, ` and `,` with `_` for safe filenames

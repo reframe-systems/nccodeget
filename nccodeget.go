@@ -132,7 +132,7 @@ func main() {
 	dump := flag.Bool("dump", false, "write raw JSON response to <element-name>.json")
 	flag.Parse()
 	args := flag.Args()
-	verify(len(args) >= 1, "Usage: fstable [--dump] <part-studio-url> [output-dir]")
+	verify(len(args) >= 1, "Usage: nccodeget [--dump] <part-studio-url> [output-dir]")
 
 	rawURL := args[0]
 	outputBase := "."
