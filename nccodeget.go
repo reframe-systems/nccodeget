@@ -155,12 +155,18 @@ func main() {
 	var data map[string]interface{}
 	err = json.Unmarshal(body, &data)
 	verify(err == nil, "failed to parse fstable response: %v", err)
-	tables, _ := data["tables"].([]interface{})
-	verify(len(tables) > 0, "no tables in response")
 
+	//before continuing on with processing, attempt to dump raw
 	outDir := filepath.Join(outputBase, elementName)
 	err = os.MkdirAll(outDir, 0755)
 	verify(err == nil, "failed to create output directory: %v", err)
+	if *dump {
+		pretty, _ := json.MarshalIndent(data, "", "  ")
+		writeFile(filepath.Join(outDir, elementName+".json"), string(pretty))
+	}
+
+	tables, _ := data["tables"].([]interface{})
+	verify(len(tables) > 0, "no tables in response")
 
 	if *dump {
 		pretty, _ := json.MarshalIndent(data, "", "  ")
@@ -177,6 +183,8 @@ func main() {
 		allTexts = append(allTexts, text)
 	}
 
-	writeFile(filepath.Join(outDir, elementName+".txt"), strings.Join(allTexts, "\n"))
+	if *dump {
+		writeFile(filepath.Join(outDir, elementName+".txt"), strings.Join(allTexts, "\n"))
+	}
 	fmt.Printf("done: %d table(s) written to %s\n", len(tables), outDir)
 }
