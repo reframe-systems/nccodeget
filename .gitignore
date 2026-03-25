@@ -1,0 +1,5 @@
+.vscode/*
+fstable
+secrets.json
+*.txt
+*.json
