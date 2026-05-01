@@ -16,19 +16,19 @@ You should see something like `go version go1.24.3 darwin/arm64`. That's it — 
 
 ### 1. Get Onshape API credentials
 
-The tool authenticates with Onshape using API keys stored in a `secrets.json` file in this directory. This file is gitignored and never committed.
+The tool authenticates with Onshape using API keys stored in a `settings.json` file in this directory. This file is gitignored and never committed.
 
-The credentials live in 1Password. From the `secrets.json.template` file, the paths are:
+Please note if you are using the proxy (`useProxy:true`) then you need the `proxyURL`, the `proxyKey`, and the `onshapeKey`. If you are calling the onshape api directly (`useProxy:false`) then you supply your developer api credentials `accessKey` and `secretKey`.
 
-- **Access key:** `op://Shared/onshape_readonly_api_credentials/username`
-- **Secret key:** `op://Shared/onshape_readonly_api_credentials/credential`
-
-Create `secrets.json` in this directory with those values filled in:
-
-```json
+Copy the template and populate the keys:
+```
 {
-  "accessKey": "<access key from 1Password>",
-  "secretKey": "<secret key from 1Password>"
+    "useProxy": false,
+    "accessKey": "op://Shared/onshape_readonly_api_credentials/username",
+    "secretKey": "op://Shared/onshape_readonly_api_credentials/credential",
+    "proxyURL": "https://onshape.reframe.quest",
+    "proxyKey": "<ReframeApiKey — proxy gate credential>",
+    "onshapeKey": "<pre-computed base64 Basic Auth token for Onshape>"
 }
 ```
 
