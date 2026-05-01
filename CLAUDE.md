@@ -15,11 +15,12 @@ go build         # produces ./nccodeget binary
 ```
 
 ```sh
-./nccodeget <onshape-part-studio-url> [output-dir] [--dump]
+./nccodeget [-dump] [-settings=<file>] <onshape-part-studio-url> [output-dir]
 # e.g.: ./nccodeget https://cad.onshape.com/documents/2ae050.../w/b24063.../e/619427... ./output
+# e.g.: ./nccodeget -settings=proxy.json https://cad.onshape.com/... ./output
 ```
 
-`--dump` writes a raw JSON file of the API response alongside the text files.
+`-dump` writes a raw JSON file of the API response alongside the text files.
 
 The URL must match the pattern `https://cad.onshape.com/documents/{did}/{wvm}/{wvmid}/e/{eid}`.
 
@@ -30,21 +31,20 @@ The URL must match the pattern `https://cad.onshape.com/documents/{did}/{wvm}/{w
   <element-name>.txt         # all tables concatenated
   14040.txt                  # NC code from table titled "14040"
   14041_14042_14043.txt      # commas/spaces in title replaced with _
-  <element-name>.json        # raw API response (--dump only)
+  <element-name>.json        # raw API response (-dump only)
 ```
 
 ## Credentials
 
-`secrets.json` (gitignored) must contain Onshape API keys:
+Three settings files (all gitignored) select the target endpoint:
 
-```json
-{
-  "accessKey": "<your-access-key>",
-  "secretKey": "<your-secret-key>"
-}
-```
+- `direct.json` — direct Onshape API, uses `accessKey`/`secretKey`
+- `proxy.json` — production proxy (`https://onshape.reframe.quest`), uses `onshapeKey`/`proxyKey`
+- `local.json` — local proxy (`http://localhost:5080`), uses `onshapeKey`/`proxyKey`
 
-See `secrets.json.template` for the 1Password paths. The pre-commit hook in `hooks/pre-commit` blocks commits that include `secrets.json`. To install: `cp hooks/pre-commit .git/hooks/pre-commit`.
+`-settings=<file>` defaults to `direct.json`. See `settings.json.template` for all fields.
+
+The pre-commit hook in `hooks/pre-commit` blocks commits that include credential files. To install: `cp hooks/pre-commit .git/hooks/pre-commit`.
 
 ## Architecture
 

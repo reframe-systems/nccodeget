@@ -31,17 +31,31 @@ func verify(test bool, format string, va ...any) {
 	}
 }
 
-func getAccessAndSecretKeys(filename string) (string, string) {
-	bytes, err := os.ReadFile(filename)
-	verify(err == nil, "failed to read %s", filename)
-	var keys map[string]any
-	err = json.Unmarshal(bytes, &keys)
-	verify(err == nil, "error parsing JSON in %s", filename)
-	secretKey, ok := keys["secretKey"].(string)
-	verify(ok, "failed to retrieve secretKey")
-	accessKey, ok := keys["accessKey"].(string)
-	verify(ok, "failed to retrieve accessKey")
-	return accessKey, secretKey
+type Settings struct {
+	AccessKey  string `json:"accessKey"`
+	SecretKey  string `json:"secretKey"`
+	UseProxy   bool   `json:"useProxy"`
+	ProxyURL   string `json:"proxyURL"`
+	ProxyKey   string `json:"proxyKey"`
+	OnshapeKey string `json:"onshapeKey"`
+}
+
+var settings Settings
+
+func loadSettings(filename string) Settings {
+	data, err := os.ReadFile(filename)
+	verify(err == nil, "failed to read %s: %v", filename, err)
+	var s Settings
+	err = json.Unmarshal(data, &s)
+	verify(err == nil, "failed to parse JSON in %s: %v", filename, err)
+	if s.UseProxy {
+		verify(s.OnshapeKey != "", "onshapeKey missing in %s (required for proxy mode)", filename)
+		verify(s.ProxyKey != "", "proxyKey missing in %s (required for proxy mode)", filename)
+	} else {
+		verify(s.AccessKey != "", "accessKey missing in %s (required for direct mode)", filename)
+		verify(s.SecretKey != "", "secretKey missing in %s (required for direct mode)", filename)
+	}
+	return s
 }
 
 func parseOnshapePath(rawURL string) map[string]string {
@@ -57,10 +71,28 @@ func parseOnshapePath(rawURL string) map[string]string {
 }
 
 func apiGet(access, secret, endpoint string, params url.Values) []byte {
-	req, err := http.NewRequest("GET", endpoint+"?"+params.Encode(), nil)
+	resolvedEndpoint := endpoint
+	if settings.UseProxy {
+		proxyBase := settings.ProxyURL
+		if proxyBase == "" {
+			proxyBase = "http://localhost:5080"
+		}
+		resolvedEndpoint = strings.Replace(endpoint, "https://cad.onshape.com/api/v14", proxyBase+"/api/v12", 1)
+	}
+
+	fullURL := resolvedEndpoint
+	if len(params) > 0 {
+		fullURL += "?" + params.Encode()
+	}
+	req, err := http.NewRequest("GET", fullURL, nil)
 	verify(err == nil, "failed to build request: %v", err)
 	req.Header.Set("Accept", "application/json;charset=UTF-8; qs=0.09")
-	req.SetBasicAuth(access, secret)
+	if settings.UseProxy {
+		req.Header.Set("Authorization", "Basic "+settings.OnshapeKey)
+		req.Header.Set("ReframeApiKey", settings.ProxyKey)
+	} else {
+		req.SetBasicAuth(access, secret)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	verify(err == nil, "request failed: %v", err)
 	defer resp.Body.Close()
@@ -130,9 +162,10 @@ func writeFile(path, content string) {
 
 func main() {
 	dump := flag.Bool("dump", false, "write raw JSON response to <element-name>.json")
+	settingsFile := flag.String("settings", "direct.json", "settings file (direct.json, proxy.json, local.json)")
 	flag.Parse()
 	args := flag.Args()
-	verify(len(args) >= 1, "Usage: nccodeget [--dump] <part-studio-url> [output-dir]")
+	verify(len(args) >= 1, "Usage: nccodeget [-dump] [-settings=<file>] <part-studio-url> [output-dir]")
 
 	rawURL := args[0]
 	outputBase := "."
@@ -142,21 +175,20 @@ func main() {
 
 	wd, err := os.Getwd()
 	verify(err == nil, "unable to get working directory: %v", err)
-	access, secret := getAccessAndSecretKeys(filepath.Join(wd, "secrets.json"))
+	settings = loadSettings(filepath.Join(wd, *settingsFile))
 
 	osPath := parseOnshapePath(rawURL)
 
 	fmt.Println("fetching element name...")
-	elementName := getElementName(access, secret, osPath)
+	elementName := getElementName(settings.AccessKey, settings.SecretKey, osPath)
 
 	fmt.Println("fetching NC code tables...")
-	body := getFSTable(access, secret, osPath)
+	body := getFSTable(settings.AccessKey, settings.SecretKey, osPath)
 
 	var data map[string]interface{}
 	err = json.Unmarshal(body, &data)
 	verify(err == nil, "failed to parse fstable response: %v", err)
 
-	//before continuing on with processing, attempt to dump raw
 	outDir := filepath.Join(outputBase, elementName)
 	err = os.MkdirAll(outDir, 0755)
 	verify(err == nil, "failed to create output directory: %v", err)
@@ -167,11 +199,6 @@ func main() {
 
 	tables, _ := data["tables"].([]interface{})
 	verify(len(tables) > 0, "no tables in response")
-
-	if *dump {
-		pretty, _ := json.MarshalIndent(data, "", "  ")
-		writeFile(filepath.Join(outDir, elementName+".json"), string(pretty))
-	}
 
 	var allTexts []string
 	for _, t := range tables {
